@@ -2,12 +2,14 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
-import { MapPin, Calendar, Clock, Heart, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { MapPin, Calendar, Clock, Heart, Loader2, CheckCircle, Phone, MessageSquare, User } from "lucide-react";
 import {
   getInvitationBySlug,
   type PublicInvitation,
 } from "@/lib/supabase/public-invitation";
+import { submitRsvp } from "@/lib/supabase/rsvp";
+import { cn } from "@/lib/utils";
 
 export default function InvitePage() {
   return (
@@ -367,6 +369,11 @@ function InvitationView({
         </FadeSection>
       )}
 
+      {/* RSVP */}
+      <FadeSection>
+        <RsvpSection invitationId={invite.id} defaultName={guestName} />
+      </FadeSection>
+
       {/* Footer */}
       <footer
         className="px-6 py-12 text-center"
@@ -402,6 +409,256 @@ function InvitationView({
         </p>
       </footer>
     </main>
+  );
+}
+
+// ─── RSVP Section ─────────────────────────────────────────────────────────────
+
+type RsvpState = "idle" | "submitting" | "done" | "error";
+
+function RsvpSection({
+  invitationId,
+  defaultName,
+}: {
+  invitationId: string;
+  defaultName: string;
+}) {
+  const [name, setName] = useState(defaultName);
+  const [phone, setPhone] = useState("");
+  const [status, setStatus] = useState<"attending" | "not_attending">("attending");
+  const [message, setMessage] = useState("");
+  const [state, setState] = useState<RsvpState>("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setState("submitting");
+    setErrorMsg("");
+
+    try {
+      await submitRsvp({
+        invitation_id: invitationId,
+        name,
+        phone,
+        rsvp_status: status,
+        message,
+      });
+      setState("done");
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Terjadi kesalahan.");
+      setState("error");
+    }
+  }
+
+  return (
+    <section className="px-6 py-16" style={{ background: "var(--background)" }}>
+      <div className="mx-auto max-w-xl">
+        <SectionTitle>Konfirmasi Kehadiran</SectionTitle>
+
+        <AnimatePresence mode="wait">
+          {state === "done" ? (
+            <motion.div
+              key="done"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mt-8 flex flex-col items-center gap-4 rounded-2xl p-8 text-center"
+              style={{
+                background: "var(--muted)",
+                border: "1px solid var(--border)",
+              }}
+            >
+              <div
+                className="flex h-16 w-16 items-center justify-center rounded-full"
+                style={{ background: "#f0fdf4" }}
+              >
+                <CheckCircle className="h-8 w-8" style={{ color: "#16a34a" }} />
+              </div>
+              <div>
+                <p
+                  className="text-lg font-semibold"
+                  style={{ fontFamily: "var(--font-playfair)" }}
+                >
+                  Terima kasih, {name}!
+                </p>
+                <p
+                  className="mt-1 text-sm"
+                  style={{
+                    color: "var(--muted-foreground)",
+                    fontFamily: "var(--font-inter)",
+                  }}
+                >
+                  {status === "attending"
+                    ? "Kami menantikan kehadiran Anda 🎉"
+                    : "Konfirmasi Anda sudah kami terima."}
+                </p>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.form
+              key="form"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              onSubmit={handleSubmit}
+              className="mt-8 flex flex-col gap-4"
+            >
+              {/* Attendance toggle */}
+              <div className="grid grid-cols-2 gap-3">
+                {(
+                  [
+                    { val: "attending", label: "Hadir ✓" },
+                    { val: "not_attending", label: "Tidak Hadir" },
+                  ] as const
+                ).map((opt) => (
+                  <button
+                    key={opt.val}
+                    type="button"
+                    onClick={() => setStatus(opt.val)}
+                    className={cn(
+                      "rounded-xl py-3 text-sm font-medium transition-all",
+                    )}
+                    style={{
+                      background:
+                        status === opt.val ? "var(--primary)" : "var(--muted)",
+                      color:
+                        status === opt.val
+                          ? "var(--primary-foreground)"
+                          : "var(--muted-foreground)",
+                      fontFamily: "var(--font-inter)",
+                      border:
+                        status === opt.val
+                          ? "1px solid var(--primary)"
+                          : "1px solid var(--border)",
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Name */}
+              <FormField
+                icon={<User className="h-4 w-4" />}
+                label="Nama"
+                required
+              >
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Nama lengkap Anda"
+                  required
+                  className="w-full bg-transparent py-0.5 text-sm outline-none placeholder:opacity-50"
+                  style={{ fontFamily: "var(--font-inter)" }}
+                />
+              </FormField>
+
+              {/* Phone */}
+              <FormField
+                icon={<Phone className="h-4 w-4" />}
+                label="No. WhatsApp (opsional)"
+              >
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="08xxxxxxxxxx"
+                  className="w-full bg-transparent py-0.5 text-sm outline-none placeholder:opacity-50"
+                  style={{ fontFamily: "var(--font-inter)" }}
+                />
+              </FormField>
+
+              {/* Message */}
+              <FormField
+                icon={<MessageSquare className="h-4 w-4" />}
+                label="Ucapan &amp; Doa (opsional)"
+              >
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Tulis ucapan atau doa untuk pasangan..."
+                  rows={3}
+                  className="w-full resize-none bg-transparent py-0.5 text-sm outline-none placeholder:opacity-50"
+                  style={{ fontFamily: "var(--font-inter)" }}
+                />
+              </FormField>
+
+              {state === "error" && (
+                <p
+                  className="rounded-lg px-3 py-2 text-sm"
+                  style={{
+                    background: "#fef2f2",
+                    color: "#dc2626",
+                    fontFamily: "var(--font-inter)",
+                  }}
+                >
+                  {errorMsg}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={state === "submitting" || !name.trim()}
+                className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium transition-all disabled:opacity-60"
+                style={{
+                  background: "var(--primary)",
+                  color: "var(--primary-foreground)",
+                  fontFamily: "var(--font-inter)",
+                }}
+              >
+                {state === "submitting" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Kirim Konfirmasi"
+                )}
+              </button>
+            </motion.form>
+          )}
+        </AnimatePresence>
+      </div>
+    </section>
+  );
+}
+
+function FormField({
+  icon,
+  label,
+  required,
+  children,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="flex gap-3 rounded-xl px-4 py-3"
+      style={{
+        background: "var(--muted)",
+        border: "1px solid var(--border)",
+      }}
+    >
+      <div
+        className="mt-0.5 flex-shrink-0"
+        style={{ color: "var(--primary)" }}
+      >
+        {icon}
+      </div>
+      <div className="flex flex-1 flex-col gap-0.5">
+        <label
+          className="text-xs uppercase tracking-wider"
+          style={{
+            color: "var(--muted-foreground)",
+            fontFamily: "var(--font-inter)",
+          }}
+        >
+          {label}
+          {required && <span style={{ color: "var(--primary)" }}> *</span>}
+        </label>
+        {children}
+      </div>
+    </div>
   );
 }
 

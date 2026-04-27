@@ -23,6 +23,7 @@ export type Database = {
           full_name?: string | null;
           plan?: PlanType;
         };
+        Relationships: [];
       };
       templates: {
         Row: {
@@ -34,8 +35,23 @@ export type Database = {
           sort_order: number;
           created_at: string;
         };
-        Insert: never;
-        Update: never;
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          thumbnail_url?: string;
+          is_premium?: boolean;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          name?: string;
+          slug?: string;
+          thumbnail_url?: string;
+          is_premium?: boolean;
+          sort_order?: number;
+        };
+        Relationships: [];
       };
       invitations: {
         Row: {
@@ -82,6 +98,22 @@ export type Database = {
           custom_message?: string | null;
           is_published?: boolean;
         };
+        Relationships: [
+          {
+            foreignKeyName: "invitations_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "invitations_template_id_fkey";
+            columns: ["template_id"];
+            isOneToOne: false;
+            referencedRelation: "templates";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       guests: {
         Row: {
@@ -105,6 +137,15 @@ export type Database = {
           rsvp_status?: RsvpStatus;
           message?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: "guests_invitation_id_fkey";
+            columns: ["invitation_id"];
+            isOneToOne: false;
+            referencedRelation: "invitations";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Views: {
@@ -122,6 +163,7 @@ export type Database = {
           not_attending: number;
           pending: number;
         };
+        Relationships: [];
       };
     };
     Functions: Record<string, never>;
