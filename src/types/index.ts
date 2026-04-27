@@ -1,32 +1,17 @@
-export type Template = {
-  id: string;
-  name: string;
-  slug: string;
-  thumbnail: string;
-  isPremium: boolean;
-};
+import type { Database, RsvpStatus, PlanType } from "@/lib/supabase/types";
 
-export type Invitation = {
-  id: string;
-  slug: string;
-  templateId: string;
-  brideeName: string;
-  groomName: string;
-  eventDate: string;
-  eventTime: string;
-  venueName: string;
-  venueAddress: string;
-  coverImageUrl: string | null;
-  userId: string;
-  createdAt: string;
-};
+// Re-export DB row types as app types
+export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+export type Template = Database["public"]["Tables"]["templates"]["Row"];
+export type Invitation = Database["public"]["Tables"]["invitations"]["Row"];
+export type Guest = Database["public"]["Tables"]["guests"]["Row"];
+export type InvitationStats =
+  Database["public"]["Views"]["invitation_stats"]["Row"];
 
-export type Guest = {
-  id: string;
-  invitationId: string;
-  name: string;
-  phone: string | null;
-  rsvpStatus: "pending" | "attending" | "not_attending";
-  message: string | null;
-  createdAt: string;
+// Re-export enums
+export type { RsvpStatus, PlanType };
+
+// Convenience: invitation joined with its template
+export type InvitationWithTemplate = Invitation & {
+  templates: Pick<Template, "name" | "slug">;
 };
