@@ -323,7 +323,7 @@ function InvitationCard({
           Edit
         </Link>
         <Link
-          href={`/dashboard/guests/${inv.invitation_id}`}
+          href={`/dashboard/guests?id=${inv.invitation_id}`}
           className="flex-1 rounded-xl py-2 text-center text-sm font-medium transition-colors hover:opacity-70"
           style={{
             background: "var(--muted)",
