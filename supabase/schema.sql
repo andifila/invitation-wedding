@@ -1,7 +1,20 @@
 -- ============================================================
--- WeddingInvite — Full Database Schema
+-- WeddingInvite — Full Database Schema (idempotent)
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- ============================================================
+
+-- ─────────────────────────────────────────
+-- RESET (safe to re-run)
+-- ─────────────────────────────────────────
+drop table if exists guests cascade;
+drop table if exists invitations cascade;
+drop table if exists templates cascade;
+drop table if exists profiles cascade;
+drop view if exists invitation_stats cascade;
+drop function if exists handle_new_user cascade;
+drop function if exists set_updated_at cascade;
+drop type if exists rsvp_status cascade;
+drop type if exists plan_type cascade;
 
 -- ─────────────────────────────────────────
 -- EXTENSIONS
@@ -27,7 +40,6 @@ create table profiles (
 
 alter table profiles enable row level security;
 
--- users can read & update only their own profile
 create policy "profiles: own read"
   on profiles for select
   using (auth.uid() = id);
@@ -50,6 +62,7 @@ begin
 end;
 $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure handle_new_user();
@@ -69,12 +82,10 @@ create table templates (
 
 alter table templates enable row level security;
 
--- everyone can read templates
 create policy "templates: public read"
   on templates for select
   using (true);
 
--- seed default templates
 insert into templates (name, slug, thumbnail_url, is_premium, sort_order) values
   ('Garden Bloom',   'garden-bloom',   '', false, 1),
   ('Rustic Gold',    'rustic-gold',    '', false, 2),
@@ -105,7 +116,6 @@ create table invitations (
 
 alter table invitations enable row level security;
 
--- owner: full CRUD
 create policy "invitations: owner select"
   on invitations for select
   using (auth.uid() = user_id);
@@ -122,12 +132,10 @@ create policy "invitations: owner delete"
   on invitations for delete
   using (auth.uid() = user_id);
 
--- public: read published invitations by slug (for /invite/[slug])
 create policy "invitations: public read published"
   on invitations for select
   using (is_published = true);
 
--- auto-update updated_at
 create or replace function set_updated_at()
 returns trigger language plpgsql as $$
 begin
@@ -136,6 +144,7 @@ begin
 end;
 $$;
 
+drop trigger if exists invitations_updated_at on invitations;
 create trigger invitations_updated_at
   before update on invitations
   for each row execute procedure set_updated_at();
@@ -155,7 +164,6 @@ create table guests (
 
 alter table guests enable row level security;
 
--- invitation owner: full read/write of their guests
 create policy "guests: owner select"
   on guests for select
   using (
@@ -196,7 +204,7 @@ create policy "guests: owner delete"
     )
   );
 
--- public: anyone can insert a guest (RSVP from invitation page)
+-- public: RSVP insert on published invitations
 create policy "guests: public rsvp insert"
   on guests for insert
   with check (
@@ -207,7 +215,7 @@ create policy "guests: public rsvp insert"
     )
   );
 
--- public: guests can read their own record by name + invitation
+-- public: read guests of published invitations
 create policy "guests: public read own"
   on guests for select
   using (
@@ -219,7 +227,7 @@ create policy "guests: public read own"
   );
 
 -- ─────────────────────────────────────────
--- HELPER VIEWS (for dashboard stats)
+-- HELPER VIEWS
 -- ─────────────────────────────────────────
 create or replace view invitation_stats as
 select
@@ -230,10 +238,10 @@ select
   i.groom_name,
   i.event_date,
   i.is_published,
-  count(g.id)                                                       as total_guests,
-  count(g.id) filter (where g.rsvp_status = 'attending')           as attending,
-  count(g.id) filter (where g.rsvp_status = 'not_attending')       as not_attending,
-  count(g.id) filter (where g.rsvp_status = 'pending')             as pending
+  count(g.id)                                                  as total_guests,
+  count(g.id) filter (where g.rsvp_status = 'attending')      as attending,
+  count(g.id) filter (where g.rsvp_status = 'not_attending')  as not_attending,
+  count(g.id) filter (where g.rsvp_status = 'pending')        as pending
 from invitations i
 left join guests g on g.invitation_id = i.id
 group by i.id;
