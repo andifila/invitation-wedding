@@ -312,7 +312,7 @@ function InvitationCard({
       {/* Actions */}
       <div className="mt-4 flex gap-2">
         <Link
-          href={`/dashboard/edit/${inv.invitation_id}`}
+          href={`/dashboard/edit?id=${inv.invitation_id}`}
           className="flex-1 rounded-xl py-2 text-center text-sm font-medium transition-all hover:opacity-90"
           style={{
             background: "var(--primary)",

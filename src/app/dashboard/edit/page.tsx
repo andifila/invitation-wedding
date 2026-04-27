@@ -1,0 +1,160 @@
+"use client";
+
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import InvitationForm, {
+  type FormValues,
+} from "@/components/invitation/InvitationForm";
+import {
+  getInvitationById,
+  updateInvitation,
+} from "@/lib/supabase/invitation-crud";
+
+export default function EditInvitationPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <Loader2
+            className="h-8 w-8 animate-spin"
+            style={{ color: "var(--primary)" }}
+          />
+        </div>
+      }
+    >
+      <EditContent />
+    </Suspense>
+  );
+}
+
+function EditContent() {
+  const params = useSearchParams();
+  const router = useRouter();
+  const id = params.get("id") ?? "";
+
+  const [initial, setInitial] = useState<FormValues | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!id) {
+      setLoading(false);
+      return;
+    }
+    getInvitationById(id).then((inv) => {
+      if (inv) {
+        setInitial({
+          template_id: inv.template_id,
+          bride_name: inv.bride_name,
+          groom_name: inv.groom_name,
+          event_date: inv.event_date,
+          event_time: inv.event_time,
+          venue_name: inv.venue_name,
+          venue_address: inv.venue_address,
+          custom_message: inv.custom_message ?? "",
+          slug: inv.slug,
+          is_published: inv.is_published,
+        });
+      }
+      setLoading(false);
+    });
+  }, [id]);
+
+  async function handleSubmit(values: FormValues) {
+    setSubmitting(true);
+    setError("");
+    try {
+      await updateInvitation(id, {
+        template_id: values.template_id,
+        bride_name: values.bride_name.trim(),
+        groom_name: values.groom_name.trim(),
+        event_date: values.event_date,
+        event_time: values.event_time,
+        venue_name: values.venue_name.trim(),
+        venue_address: values.venue_address.trim(),
+        custom_message: values.custom_message.trim() || null,
+        is_published: values.is_published,
+      });
+      router.push("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal menyimpan.");
+      setSubmitting(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2
+          className="h-8 w-8 animate-spin"
+          style={{ color: "var(--primary)" }}
+        />
+      </div>
+    );
+  }
+
+  if (!id || !initial) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4">
+        <p style={{ fontFamily: "var(--font-inter)" }}>
+          Undangan tidak ditemukan.
+        </p>
+        <button
+          onClick={() => router.push("/dashboard")}
+          className="text-sm underline"
+          style={{ color: "var(--primary)", fontFamily: "var(--font-inter)" }}
+        >
+          Kembali ke dashboard
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen" style={{ background: "var(--muted)" }}>
+      <nav
+        className="sticky top-0 z-10 px-4 py-4"
+        style={{
+          background: "var(--background)",
+          borderBottom: "1px solid var(--border)",
+        }}
+      >
+        <div className="mx-auto flex max-w-2xl items-center gap-3">
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="rounded-lg p-2 transition-colors hover:opacity-70"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <h1
+            className="text-base font-semibold"
+            style={{ fontFamily: "var(--font-playfair)" }}
+          >
+            Edit Undangan
+          </h1>
+        </div>
+      </nav>
+
+      <main className="mx-auto max-w-2xl px-4 py-8">
+        <div
+          className="rounded-2xl p-6"
+          style={{
+            background: "var(--background)",
+            border: "1px solid var(--border)",
+          }}
+        >
+          <InvitationForm
+            initial={initial}
+            submitting={submitting}
+            error={error}
+            onSubmit={handleSubmit}
+            submitLabel="Simpan Perubahan"
+          />
+        </div>
+      </main>
+    </div>
+  );
+}

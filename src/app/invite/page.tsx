@@ -87,6 +87,17 @@ function InviteContent() {
   return <InvitationView invite={invite} guestName={guestName} />;
 }
 
+const TEMPLATE_THEMES: Record<
+  string,
+  { primary: string; muted: string; border: string }
+> = {
+  "garden-bloom":   { primary: "#4a7c59", muted: "#e8f4e8", border: "#c5dfc5" },
+  "rustic-gold":    { primary: "#b08d57", muted: "#f3f0eb", border: "#e8e2d9" },
+  "modern-minimal": { primary: "#1a1a1a", muted: "#f5f5f5", border: "#e0e0e0" },
+  "royal-elegance": { primary: "#6b35a3", muted: "#f5f0fa", border: "#d4b8f0" },
+  "floral-dream":   { primary: "#c06080", muted: "#fdf0f5", border: "#f0c0d0" },
+};
+
 function InvitationView({
   invite,
   guestName,
@@ -94,6 +105,10 @@ function InvitationView({
   invite: PublicInvitation;
   guestName: string;
 }) {
+  const theme =
+    TEMPLATE_THEMES[invite.template_slug ?? "rustic-gold"] ??
+    TEMPLATE_THEMES["rustic-gold"];
+
   const eventDate = new Date(invite.event_date);
   const dayName = eventDate.toLocaleDateString("id-ID", { weekday: "long" });
   const day = eventDate.getDate();
@@ -113,7 +128,13 @@ function InvitationView({
   return (
     <main
       className="min-h-screen"
-      style={{ background: "var(--background)" }}
+      style={{
+        background: "var(--background)",
+        // @ts-expect-error css vars override
+        "--primary": theme.primary,
+        "--muted": theme.muted,
+        "--border": theme.border,
+      }}
     >
       {/* Hero */}
       <section
