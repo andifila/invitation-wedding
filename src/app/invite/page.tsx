@@ -6,7 +6,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Calendar, Clock, Heart, Loader2, CheckCircle, Phone, MessageSquare, User } from "lucide-react";
 import {
   getInvitationBySlug,
+  getPublicMessages,
   type PublicInvitation,
+  type GuestMessage,
 } from "@/lib/supabase/public-invitation";
 import { submitRsvp } from "@/lib/supabase/rsvp";
 import { cn } from "@/lib/utils";
@@ -34,6 +36,7 @@ function InviteContent() {
   const guestName = params.get("to") ?? "";
 
   const [invite, setInvite] = useState<PublicInvitation | null>(null);
+  const [messages, setMessages] = useState<GuestMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -45,11 +48,17 @@ function InviteContent() {
     }
     getInvitationBySlug(slug)
       .then((data) => {
-        if (!data) setNotFound(true);
-        else setInvite(data);
+        if (!data) { setNotFound(true); return; }
+        setInvite(data);
+        return getPublicMessages(data.id);
       })
+      .then((msgs) => { if (msgs) setMessages(msgs); })
       .finally(() => setLoading(false));
   }, [slug]);
+
+  function refreshMessages(invitationId: string) {
+    getPublicMessages(invitationId).then(setMessages);
+  }
 
   if (loading) {
     return (
@@ -84,7 +93,14 @@ function InviteContent() {
     );
   }
 
-  return <InvitationView invite={invite} guestName={guestName} />;
+  return (
+    <InvitationView
+      invite={invite}
+      guestName={guestName}
+      messages={messages}
+      onRsvpSuccess={() => refreshMessages(invite.id)}
+    />
+  );
 }
 
 const TEMPLATE_THEMES: Record<
@@ -101,9 +117,13 @@ const TEMPLATE_THEMES: Record<
 function InvitationView({
   invite,
   guestName,
+  messages,
+  onRsvpSuccess,
 }: {
   invite: PublicInvitation;
   guestName: string;
+  messages: GuestMessage[];
+  onRsvpSuccess: () => void;
 }) {
   const theme =
     TEMPLATE_THEMES[invite.template_slug ?? "rustic-gold"] ??
@@ -392,8 +412,75 @@ function InvitationView({
 
       {/* RSVP */}
       <FadeSection>
-        <RsvpSection invitationId={invite.id} defaultName={guestName} />
+        <RsvpSection
+          invitationId={invite.id}
+          defaultName={guestName}
+          onSuccess={onRsvpSuccess}
+        />
       </FadeSection>
+
+      {/* Guest messages */}
+      {messages.length > 0 && (
+        <FadeSection>
+          <section
+            className="px-6 py-16"
+            style={{ background: "var(--muted)" }}
+          >
+            <div className="mx-auto max-w-xl">
+              <SectionTitle>Ucapan &amp; Doa</SectionTitle>
+              <div className="mt-8 flex flex-col gap-4">
+                {messages.map((m) => (
+                  <div
+                    key={m.id}
+                    className="rounded-2xl p-5"
+                    style={{
+                      background: "var(--background)",
+                      border: "1px solid var(--border)",
+                    }}
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p
+                        className="text-sm font-semibold"
+                        style={{ fontFamily: "var(--font-playfair)" }}
+                      >
+                        {m.name}
+                      </p>
+                      <span
+                        className="shrink-0 rounded-full px-2.5 py-0.5 text-xs"
+                        style={{
+                          background:
+                            m.rsvp_status === "attending"
+                              ? "#f0fdf4"
+                              : "var(--muted)",
+                          color:
+                            m.rsvp_status === "attending"
+                              ? "#16a34a"
+                              : "var(--muted-foreground)",
+                          fontFamily: "var(--font-inter)",
+                        }}
+                      >
+                        {m.rsvp_status === "attending"
+                          ? "Hadir ✓"
+                          : "Tidak Hadir"}
+                      </span>
+                    </div>
+                    <p
+                      className="text-sm leading-relaxed"
+                      style={{
+                        color: "var(--muted-foreground)",
+                        fontFamily: "var(--font-inter)",
+                        fontStyle: "italic",
+                      }}
+                    >
+                      &ldquo;{m.message}&rdquo;
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        </FadeSection>
+      )}
 
       {/* Footer */}
       <footer
@@ -440,9 +527,11 @@ type RsvpState = "idle" | "submitting" | "done" | "error";
 function RsvpSection({
   invitationId,
   defaultName,
+  onSuccess,
 }: {
   invitationId: string;
   defaultName: string;
+  onSuccess: () => void;
 }) {
   const [name, setName] = useState(defaultName);
   const [phone, setPhone] = useState("");
@@ -466,6 +555,7 @@ function RsvpSection({
         message,
       });
       setState("done");
+      onSuccess();
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Terjadi kesalahan.");
       setState("error");

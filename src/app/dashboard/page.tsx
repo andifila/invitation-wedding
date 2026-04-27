@@ -269,7 +269,7 @@ function InvitationCard({
         </span>
 
         <Link
-          href={`/invite/${inv.slug}`}
+          href={`/invite/?s=${inv.slug}`}
           target="_blank"
           className="rounded-lg p-1.5 transition-colors hover:opacity-70"
           style={{ color: "var(--muted-foreground)" }}
