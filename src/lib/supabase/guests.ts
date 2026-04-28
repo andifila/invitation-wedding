@@ -38,6 +38,21 @@ export async function removeGuest(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function bulkAddGuests(
+  invitationId: string,
+  rows: Array<{ name: string; phone: string }>
+): Promise<number> {
+  if (!rows.length) return 0;
+  const inserts = rows.map((g) => ({
+    invitation_id: invitationId,
+    name: g.name.trim(),
+    phone: g.phone?.trim() || null,
+  }));
+  const { data, error } = await supabase.from("guests").insert(inserts).select("id");
+  if (error) throw error;
+  return data?.length ?? inserts.length;
+}
+
 export function toWaPhone(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   if (digits.startsWith("0")) return "62" + digits.slice(1);
