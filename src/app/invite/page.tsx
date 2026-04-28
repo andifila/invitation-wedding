@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin, Calendar, Clock, Heart, Loader2, CheckCircle,
-  Phone, MessageSquare, User, Music, Music2, Copy, Check,
+  Phone, MessageSquare, User, Music, Music2,
 } from "lucide-react";
 import {
   getInvitationBySlug,
@@ -123,6 +123,7 @@ function InviteContent() {
           guestName={guestName}
           messages={messages}
           onRsvpSuccess={() => refreshMessages(invite.id)}
+          autoPlay={opened}
         />
       </motion.div>
     </>
@@ -311,11 +312,13 @@ function InvitationView({
   guestName,
   messages,
   onRsvpSuccess,
+  autoPlay,
 }: {
   invite: PublicInvitation;
   guestName: string;
   messages: GuestMessage[];
   onRsvpSuccess: () => void;
+  autoPlay: boolean;
 }) {
   const theme = TEMPLATE_THEMES[invite.template_slug ?? "rustic-gold"] ?? TEMPLATE_THEMES["rustic-gold"];
   const hasCover = !!invite.cover_image_url;
@@ -342,6 +345,11 @@ function InvitationView({
     audioRef.current = audio;
     return () => { audio.pause(); };
   }, [invite.music_url]);
+
+  useEffect(() => {
+    if (!autoPlay || !audioRef.current) return;
+    audioRef.current.play().then(() => setMusicPlaying(true)).catch(() => {});
+  }, [autoPlay]);
 
   function toggleMusic() {
     const audio = audioRef.current;
@@ -610,12 +618,23 @@ function InvitationView({
               </div>
             </div>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-6 flex flex-col gap-3">
+              {/* Google Maps embed preview */}
+              <div className="overflow-hidden rounded-xl" style={{ height: 160, pointerEvents: "none" }}>
+                <iframe
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(invite.venue_name + " " + invite.venue_address)}&output=embed&z=15`}
+                  width="100%"
+                  height="160"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  aria-hidden="true"
+                />
+              </div>
               <a
                 href={`https://maps.google.com?q=${encodeURIComponent(invite.venue_name + " " + invite.venue_address)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-medium transition-all duration-200 hover:brightness-110 hover:shadow-lg active:scale-[0.98]"
+                className="flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-medium transition-all duration-200 hover:brightness-110 hover:shadow-lg active:scale-[0.98]"
                 style={{
                   background: "linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 80%, #000 20%))",
                   color: "#fff",
@@ -625,7 +644,6 @@ function InvitationView({
                 <MapPin className="h-4 w-4" />
                 Buka Google Maps
               </a>
-              <CopyAddressButton address={invite.venue_address} />
             </div>
           </div>
         </section>
@@ -934,31 +952,6 @@ function RsvpSection({
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function CopyAddressButton({ address }: { address: string }) {
-  const [copied, setCopied] = useState(false);
-
-  function handleCopy() {
-    navigator.clipboard.writeText(address)
-      .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); })
-      .catch(() => {});
-  }
-
-  return (
-    <button
-      onClick={handleCopy}
-      className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-medium transition-all duration-200 hover:shadow-md active:scale-[0.98]"
-      style={{
-        background: copied ? "#f0fdf4" : "var(--background)",
-        border: copied ? "1px solid #bbf7d0" : "1px solid var(--border)",
-        color: copied ? "#16a34a" : "var(--muted-foreground)",
-        fontFamily: "var(--font-inter)",
-      }}
-    >
-      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-      {copied ? "Tersalin!" : "Salin Alamat"}
-    </button>
-  );
-}
 
 function FormField({
   icon, label, required, children,
