@@ -1,9 +1,9 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Calendar, Clock, Heart, Loader2, CheckCircle, Phone, MessageSquare, User } from "lucide-react";
+import { MapPin, Calendar, Clock, Heart, Loader2, CheckCircle, Phone, MessageSquare, User, Music, Music2 } from "lucide-react";
 import {
   getInvitationBySlug,
   getPublicMessages,
@@ -128,6 +128,7 @@ function InvitationView({
   const theme =
     TEMPLATE_THEMES[invite.template_slug ?? "rustic-gold"] ??
     TEMPLATE_THEMES["rustic-gold"];
+  const hasCover = !!invite.cover_image_url;
 
   const eventDate = new Date(invite.event_date);
   const dayName = eventDate.toLocaleDateString("id-ID", { weekday: "long" });
@@ -136,6 +137,8 @@ function InvitationView({
   const year = eventDate.getFullYear();
 
   const [timeLeft, setTimeLeft] = useState(getTimeLeft(eventDate));
+  const [musicPlaying, setMusicPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const interval = setInterval(
@@ -144,6 +147,25 @@ function InvitationView({
     );
     return () => clearInterval(interval);
   }, [eventDate]);
+
+  useEffect(() => {
+    if (!invite.music_url) return;
+    const audio = new Audio(invite.music_url);
+    audio.loop = true;
+    audioRef.current = audio;
+    return () => { audio.pause(); };
+  }, [invite.music_url]);
+
+  function toggleMusic() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (musicPlaying) {
+      audio.pause();
+      setMusicPlaying(false);
+    } else {
+      audio.play().then(() => setMusicPlaying(true)).catch(() => {});
+    }
+  }
 
   return (
     <main
@@ -156,11 +178,34 @@ function InvitationView({
         "--border": theme.border,
       }}
     >
+      {/* Floating music button */}
+      {invite.music_url && (
+        <button
+          onClick={toggleMusic}
+          className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-all hover:opacity-80"
+          style={{ background: "var(--primary)", color: "#fff" }}
+          aria-label={musicPlaying ? "Pause musik" : "Putar musik"}
+        >
+          {musicPlaying ? <Music className="h-5 w-5" /> : <Music2 className="h-5 w-5" />}
+        </button>
+      )}
+
       {/* Hero */}
       <section
         className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-16"
-        style={{ background: "var(--muted)" }}
+        style={{
+          background: invite.cover_image_url ? "transparent" : "var(--muted)",
+        }}
       >
+        {invite.cover_image_url && (
+          <>
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url(${invite.cover_image_url})` }}
+            />
+            <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.45)" }} />
+          </>
+        )}
         {/* Decorative rings */}
         <Ornament />
 
@@ -181,7 +226,7 @@ function InvitationView({
               <p
                 className="text-xs uppercase tracking-widest"
                 style={{
-                  color: "var(--muted-foreground)",
+                  color: hasCover ? "rgba(255,255,255,0.75)" : "var(--muted-foreground)",
                   fontFamily: "var(--font-inter)",
                 }}
               >
@@ -189,7 +234,7 @@ function InvitationView({
               </p>
               <p
                 className="text-xl font-semibold"
-                style={{ fontFamily: "var(--font-playfair)" }}
+                style={{ color: hasCover ? "#fff" : undefined, fontFamily: "var(--font-playfair)" }}
               >
                 {guestName}
               </p>
@@ -202,7 +247,7 @@ function InvitationView({
             transition={{ delay: 0.4 }}
             className="mb-3 text-xs uppercase tracking-[0.3em]"
             style={{
-              color: "var(--primary)",
+              color: hasCover ? "rgba(255,255,255,0.85)" : "var(--primary)",
               fontFamily: "var(--font-inter)",
             }}
           >
@@ -214,7 +259,7 @@ function InvitationView({
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.5, duration: 0.6 }}
             className="text-5xl font-bold leading-tight sm:text-6xl md:text-7xl"
-            style={{ fontFamily: "var(--font-playfair)" }}
+            style={{ color: hasCover ? "#fff" : undefined, fontFamily: "var(--font-playfair)" }}
           >
             {invite.bride_name}
           </motion.h1>
@@ -237,7 +282,7 @@ function InvitationView({
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.8, duration: 0.6 }}
             className="text-5xl font-bold leading-tight sm:text-6xl md:text-7xl"
-            style={{ fontFamily: "var(--font-playfair)" }}
+            style={{ color: hasCover ? "#fff" : undefined, fontFamily: "var(--font-playfair)" }}
           >
             {invite.groom_name}
           </motion.h1>
@@ -250,12 +295,12 @@ function InvitationView({
           >
             <div
               className="h-px w-12"
-              style={{ background: "var(--primary)", opacity: 0.4 }}
+              style={{ background: hasCover ? "rgba(255,255,255,0.5)" : "var(--primary)", opacity: 0.6 }}
             />
             <p
               className="text-sm uppercase tracking-widest"
               style={{
-                color: "var(--muted-foreground)",
+                color: hasCover ? "rgba(255,255,255,0.8)" : "var(--muted-foreground)",
                 fontFamily: "var(--font-inter)",
               }}
             >
@@ -263,7 +308,7 @@ function InvitationView({
             </p>
             <div
               className="h-px w-12"
-              style={{ background: "var(--primary)", opacity: 0.4 }}
+              style={{ background: hasCover ? "rgba(255,255,255,0.5)" : "var(--primary)", opacity: 0.6 }}
             />
           </motion.div>
         </motion.div>

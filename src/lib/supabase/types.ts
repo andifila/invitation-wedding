@@ -66,6 +66,7 @@ export type Database = {
           venue_name: string;
           venue_address: string;
           cover_image_url: string | null;
+          music_url: string | null;
           custom_message: string | null;
           is_published: boolean;
           created_at: string;
@@ -83,6 +84,7 @@ export type Database = {
           venue_name: string;
           venue_address: string;
           cover_image_url?: string | null;
+          music_url?: string | null;
           custom_message?: string | null;
           is_published?: boolean;
         };
@@ -95,6 +97,7 @@ export type Database = {
           venue_name?: string;
           venue_address?: string;
           cover_image_url?: string | null;
+          music_url?: string | null;
           custom_message?: string | null;
           is_published?: boolean;
         };

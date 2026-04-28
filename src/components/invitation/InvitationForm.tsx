@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Crown } from "lucide-react";
+import { Loader2, Image, Music } from "lucide-react";
 import {
   getTemplates,
   generateSlug,
   type Template,
-  type Invitation,
 } from "@/lib/supabase/invitation-crud";
-import { cn } from "@/lib/utils";
 
 export type FormValues = {
   template_id: string;
@@ -19,6 +17,8 @@ export type FormValues = {
   venue_name: string;
   venue_address: string;
   custom_message: string;
+  cover_image_url: string;
+  music_url: string;
   slug: string;
   is_published: boolean;
 };
@@ -29,14 +29,6 @@ type Props = {
   error: string;
   onSubmit: (values: FormValues) => void;
   submitLabel: string;
-};
-
-const TEMPLATE_COLORS: Record<string, { bg: string; accent: string; label: string }> = {
-  "garden-bloom":   { bg: "#e8f4e8", accent: "#4a7c59", label: "Garden Bloom" },
-  "rustic-gold":    { bg: "#f3f0eb", accent: "#b08d57", label: "Rustic Gold" },
-  "modern-minimal": { bg: "#f5f5f5", accent: "#1a1a1a", label: "Modern Minimal" },
-  "royal-elegance": { bg: "#f5f0fa", accent: "#6b35a3", label: "Royal Elegance" },
-  "floral-dream":   { bg: "#fdf0f5", accent: "#c06080", label: "Floral Dream" },
 };
 
 export default function InvitationForm({
@@ -56,6 +48,8 @@ export default function InvitationForm({
     venue_name: initial?.venue_name ?? "",
     venue_address: initial?.venue_address ?? "",
     custom_message: initial?.custom_message ?? "",
+    cover_image_url: initial?.cover_image_url ?? "",
+    music_url: initial?.music_url ?? "",
     slug: initial?.slug ?? "",
     is_published: initial?.is_published ?? false,
   });
@@ -73,10 +67,7 @@ export default function InvitationForm({
   function set(key: keyof FormValues, val: string | boolean) {
     setValues((prev) => {
       const next = { ...prev, [key]: val };
-      if (
-        !slugManual &&
-        (key === "bride_name" || key === "groom_name")
-      ) {
+      if (!slugManual && (key === "bride_name" || key === "groom_name")) {
         const bride = key === "bride_name" ? String(val) : prev.bride_name;
         const groom = key === "groom_name" ? String(val) : prev.groom_name;
         if (bride && groom) next.slug = generateSlug(bride, groom);
@@ -90,62 +81,16 @@ export default function InvitationForm({
     onSubmit(values);
   }
 
-  const selectedTemplate = templates.find((t) => t.id === values.template_id);
+  if (templates.length === 0) {
+    return (
+      <div className="flex items-center gap-2 text-sm" style={{ color: "var(--muted-foreground)", fontFamily: "var(--font-inter)" }}>
+        <Loader2 className="h-4 w-4 animate-spin" /> Memuat...
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      {/* Template selection */}
-      <section>
-        <Label>Pilih Template</Label>
-        {templates.length === 0 ? (
-          <div className="mt-2 flex items-center gap-2 text-sm" style={{ color: "var(--muted-foreground)", fontFamily: "var(--font-inter)" }}>
-            <Loader2 className="h-4 w-4 animate-spin" /> Memuat template...
-          </div>
-        ) : (
-          <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-            {templates.map((t) => {
-              const theme = TEMPLATE_COLORS[t.slug] ?? { bg: "var(--muted)", accent: "var(--primary)", label: t.name };
-              const selected = values.template_id === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => set("template_id", t.id)}
-                  className={cn(
-                    "relative flex flex-col items-center gap-2 rounded-xl p-3 text-xs font-medium transition-all",
-                    selected && "ring-2"
-                  )}
-                  style={{
-                    background: theme.bg,
-                    border: `1px solid ${selected ? theme.accent : "var(--border)"}`,
-                    color: theme.accent,
-                    fontFamily: "var(--font-inter)",
-                    // @ts-expect-error css var
-                    "--tw-ring-color": theme.accent,
-                  }}
-                >
-                  {/* Mini preview */}
-                  <div
-                    className="h-12 w-full rounded-lg"
-                    style={{ background: theme.accent, opacity: 0.15 }}
-                  />
-                  <span className="text-center leading-tight">{theme.label}</span>
-                  {t.is_premium && (
-                    <span
-                      className="absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
-                      style={{ background: theme.accent, color: "#fff" }}
-                    >
-                      <Crown className="h-2.5 w-2.5" />
-                      Pro
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
       {/* Names */}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Nama Mempelai Wanita" required>
@@ -153,7 +98,7 @@ export default function InvitationForm({
             type="text"
             value={values.bride_name}
             onChange={(e) => set("bride_name", e.target.value)}
-            placeholder="cth. Siti Rahayu"
+            placeholder="cth. Gabriela"
             required
           />
         </Field>
@@ -162,7 +107,7 @@ export default function InvitationForm({
             type="text"
             value={values.groom_name}
             onChange={(e) => set("groom_name", e.target.value)}
-            placeholder="cth. Budi Santoso"
+            placeholder="cth. Rosandi"
             required
           />
         </Field>
@@ -210,14 +155,43 @@ export default function InvitationForm({
       </Field>
 
       {/* Custom message */}
-      <Field label="Pesan Khusus (opsional)">
+      <Field label="Ayat / Kutipan (opsional)">
         <textarea
           value={values.custom_message}
           onChange={(e) => set("custom_message", e.target.value)}
-          placeholder={'cth. “Dan di antara tanda-tanda kekuasaan-Nya...” (QS. Ar-Rum: 21)'}
+          placeholder={'cth. "Dan di antara tanda-tanda kekuasaan-Nya..." (QS. Ar-Rum: 21)'}
           rows={3}
           className="resize-none"
         />
+      </Field>
+
+      {/* Cover photo */}
+      <Field label="URL Foto Cover (opsional)" icon={<Image className="h-4 w-4" />}>
+        <input
+          type="url"
+          value={values.cover_image_url}
+          onChange={(e) => set("cover_image_url", e.target.value)}
+          placeholder="https://i.imgur.com/foto.jpg"
+        />
+        <p className="mt-1 text-xs" style={{ color: "var(--muted-foreground)" }}>
+          Upload foto ke Imgur, Google Drive (public), atau Cloudinary — paste URL-nya di sini.
+        </p>
+      </Field>
+
+      {/* Music */}
+      <Field label="URL Musik Latar (opsional)" icon={<Music className="h-4 w-4" />}>
+        <input
+          type="url"
+          value={values.music_url}
+          onChange={(e) => set("music_url", e.target.value)}
+          placeholder="https://drive.google.com/uc?export=download&id=..."
+        />
+        <p className="mt-1 text-xs" style={{ color: "var(--muted-foreground)" }}>
+          Link langsung ke file MP3. Google Drive: klik kanan → Bagikan → Salin link, ganti{" "}
+          <code className="rounded px-0.5" style={{ background: "var(--border)" }}>open?id=</code>{" "}
+          dengan{" "}
+          <code className="rounded px-0.5" style={{ background: "var(--border)" }}>uc?export=download&id=</code>.
+        </p>
       </Field>
 
       {/* Slug */}
@@ -229,19 +203,16 @@ export default function InvitationForm({
             setSlugManual(true);
             set("slug", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"));
           }}
-          placeholder="cth. siti-budi-2025"
+          placeholder="cth. rosandi-gabriela-2025"
         />
         {values.slug && (
-          <p
-            className="mt-1 text-xs"
-            style={{ color: "var(--muted-foreground)", fontFamily: "var(--font-inter)" }}
-          >
+          <p className="mt-1 text-xs" style={{ color: "var(--muted-foreground)" }}>
             URL: /invite/?s={values.slug}
           </p>
         )}
       </Field>
 
-      {/* Published */}
+      {/* Published toggle */}
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -249,15 +220,11 @@ export default function InvitationForm({
           aria-checked={values.is_published}
           onClick={() => set("is_published", !values.is_published)}
           className="relative h-6 w-11 flex-shrink-0 rounded-full transition-colors"
-          style={{
-            background: values.is_published ? "var(--primary)" : "var(--border)",
-          }}
+          style={{ background: values.is_published ? "var(--primary)" : "var(--border)" }}
         >
           <span
             className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform"
-            style={{
-              transform: values.is_published ? "translateX(20px)" : "translateX(2px)",
-            }}
+            style={{ transform: values.is_published ? "translateX(20px)" : "translateX(2px)" }}
           />
         </button>
         <div>
@@ -297,44 +264,30 @@ export default function InvitationForm({
   );
 }
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
-
-function Label({ children }: { children: React.ReactNode }) {
-  return (
-    <p
-      className="text-xs font-medium uppercase tracking-wider"
-      style={{ color: "var(--muted-foreground)", fontFamily: "var(--font-inter)" }}
-    >
-      {children}
-    </p>
-  );
-}
-
 function Field({
   label,
   required,
+  icon,
   children,
 }: {
   label: string;
   required?: boolean;
+  icon?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
       <label
-        className="text-xs font-medium uppercase tracking-wider"
+        className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider"
         style={{ color: "var(--muted-foreground)", fontFamily: "var(--font-inter)" }}
       >
+        {icon}
         {label}
-        {required && <span style={{ color: "var(--primary)" }}> *</span>}
+        {required && <span style={{ color: "var(--primary)" }}>*</span>}
       </label>
       <div
         className="rounded-xl px-4 py-3 [&_input]:w-full [&_input]:bg-transparent [&_input]:text-sm [&_input]:outline-none [&_textarea]:w-full [&_textarea]:bg-transparent [&_textarea]:text-sm [&_textarea]:outline-none"
-        style={{
-          background: "var(--muted)",
-          border: "1px solid var(--border)",
-          fontFamily: "var(--font-inter)",
-        }}
+        style={{ background: "var(--muted)", border: "1px solid var(--border)", fontFamily: "var(--font-inter)" }}
       >
         {children}
       </div>

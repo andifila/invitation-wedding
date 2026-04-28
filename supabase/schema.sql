@@ -108,6 +108,7 @@ create table invitations (
   venue_name       text not null,
   venue_address    text not null,
   cover_image_url  text,
+  music_url        text,
   custom_message   text,
   is_published     boolean not null default false,
   created_at       timestamptz not null default now(),

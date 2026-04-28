@@ -29,6 +29,8 @@ export default function NewInvitationPage() {
         venue_name: values.venue_name.trim(),
         venue_address: values.venue_address.trim(),
         custom_message: values.custom_message.trim() || null,
+        cover_image_url: values.cover_image_url.trim() || null,
+        music_url: values.music_url.trim() || null,
         slug,
         is_published: values.is_published,
       });

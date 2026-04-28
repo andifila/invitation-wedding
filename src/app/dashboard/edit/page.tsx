@@ -54,6 +54,8 @@ function EditContent() {
           venue_name: inv.venue_name,
           venue_address: inv.venue_address,
           custom_message: inv.custom_message ?? "",
+          cover_image_url: inv.cover_image_url ?? "",
+          music_url: inv.music_url ?? "",
           slug: inv.slug,
           is_published: inv.is_published,
         });
@@ -75,6 +77,8 @@ function EditContent() {
         venue_name: values.venue_name.trim(),
         venue_address: values.venue_address.trim(),
         custom_message: values.custom_message.trim() || null,
+        cover_image_url: values.cover_image_url.trim() || null,
+        music_url: values.music_url.trim() || null,
         is_published: values.is_published,
       });
       router.push("/dashboard");
