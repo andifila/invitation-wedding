@@ -39,6 +39,7 @@ function InviteContent() {
   const [messages, setMessages] = useState<GuestMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [opened, setOpened] = useState(false);
 
   useEffect(() => {
     if (!slug) {
@@ -94,12 +95,35 @@ function InviteContent() {
   }
 
   return (
-    <InvitationView
-      invite={invite}
-      guestName={guestName}
-      messages={messages}
-      onRsvpSuccess={() => refreshMessages(invite.id)}
-    />
+    <>
+      <AnimatePresence>
+        {!opened && (
+          <motion.div
+            key="envelope"
+            className="fixed inset-0 z-[60]"
+            exit={{ y: "-100%", transition: { duration: 0.65, ease: [0.4, 0, 0.2, 1] } }}
+          >
+            <EnvelopeCover
+              invite={invite}
+              guestName={guestName}
+              onOpen={() => setOpened(true)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={opened ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.6, delay: 0.35 }}
+      >
+        <InvitationView
+          invite={invite}
+          guestName={guestName}
+          messages={messages}
+          onRsvpSuccess={() => refreshMessages(invite.id)}
+        />
+      </motion.div>
+    </>
   );
 }
 
@@ -113,6 +137,164 @@ const TEMPLATE_THEMES: Record<
   "royal-elegance": { primary: "#6b35a3", muted: "#f5f0fa", border: "#d4b8f0" },
   "floral-dream":   { primary: "#c06080", muted: "#fdf0f5", border: "#f0c0d0" },
 };
+
+// ─── Envelope Cover ───────────────────────────────────────────────────────────
+
+function EnvelopeCover({
+  invite,
+  guestName,
+  onOpen,
+}: {
+  invite: PublicInvitation;
+  guestName: string;
+  onOpen: () => void;
+}) {
+  const theme =
+    TEMPLATE_THEMES[invite.template_slug ?? "rustic-gold"] ??
+    TEMPLATE_THEMES["rustic-gold"];
+  const [opening, setOpening] = useState(false);
+
+  function handleOpen() {
+    if (opening) return;
+    setOpening(true);
+    setTimeout(onOpen, 550);
+  }
+
+  return (
+    <div
+      className="flex min-h-screen flex-col items-center justify-center px-6 py-12"
+      style={{ background: theme.muted }}
+    >
+      <div className="relative w-full max-w-sm">
+        {/* Envelope card */}
+        <div
+          className="relative overflow-hidden rounded-3xl px-8 py-10 shadow-2xl"
+          style={{ background: "#fffdf9", border: `1px solid ${theme.border}` }}
+        >
+          {/* Envelope back diagonal lines decoration */}
+          <svg
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            aria-hidden
+            preserveAspectRatio="none"
+          >
+            <line x1="0" y1="0" x2="50%" y2="44%" stroke={theme.primary} strokeWidth="1" opacity="0.08" />
+            <line x1="100%" y1="0" x2="50%" y2="44%" stroke={theme.primary} strokeWidth="1" opacity="0.08" />
+            <line x1="0" y1="100%" x2="50%" y2="56%" stroke={theme.primary} strokeWidth="1" opacity="0.08" />
+            <line x1="100%" y1="100%" x2="50%" y2="56%" stroke={theme.primary} strokeWidth="1" opacity="0.08" />
+          </svg>
+
+          {/* Header */}
+          <motion.p
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mb-8 text-center text-[10px] uppercase tracking-[0.35em]"
+            style={{ color: theme.primary, fontFamily: "var(--font-inter)" }}
+          >
+            ✦ &nbsp; Undangan Pernikahan &nbsp; ✦
+          </motion.p>
+
+          {/* Guest address */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="mb-8 text-center"
+          >
+            {guestName ? (
+              <>
+                <p
+                  className="mb-2 text-xs uppercase tracking-widest"
+                  style={{ color: "var(--muted-foreground)", fontFamily: "var(--font-inter)" }}
+                >
+                  Kepada Yth.
+                </p>
+                <p
+                  className="text-3xl font-bold leading-snug"
+                  style={{ fontFamily: "var(--font-playfair)" }}
+                >
+                  {guestName}
+                </p>
+              </>
+            ) : (
+              <p
+                className="text-2xl font-bold"
+                style={{ fontFamily: "var(--font-playfair)" }}
+              >
+                Kepada Tamu Undangan
+              </p>
+            )}
+          </motion.div>
+
+          {/* Wax seal button */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.65, type: "spring", damping: 12, stiffness: 180 }}
+            className="mb-8 flex justify-center"
+          >
+            <motion.button
+              onClick={handleOpen}
+              disabled={opening}
+              whileHover={!opening ? { scale: 1.06 } : {}}
+              whileTap={!opening ? { scale: 0.9 } : {}}
+              animate={opening ? { scale: 0, rotate: 15, opacity: 0 } : {}}
+              transition={opening ? { duration: 0.35 } : {}}
+              className="relative flex h-24 w-24 flex-col items-center justify-center rounded-full shadow-lg"
+              style={{ background: theme.primary, color: "#fff" }}
+              aria-label="Buka undangan"
+            >
+              <Heart className="h-7 w-7" fill="currentColor" />
+              <span
+                className="mt-1.5 text-[9px] uppercase tracking-[0.2em]"
+                style={{ fontFamily: "var(--font-inter)" }}
+              >
+                Buka
+              </span>
+              {/* Inner ring decoration */}
+              <div
+                className="pointer-events-none absolute inset-[5px] rounded-full"
+                style={{ border: "1px solid rgba(255,255,255,0.3)" }}
+              />
+            </motion.button>
+          </motion.div>
+
+          {/* Sender */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.85 }}
+            className="text-center"
+          >
+            <p
+              className="mb-1 text-[10px] uppercase tracking-widest"
+              style={{ color: "var(--muted-foreground)", fontFamily: "var(--font-inter)" }}
+            >
+              Dari
+            </p>
+            <p
+              className="text-xl font-semibold"
+              style={{ fontFamily: "var(--font-playfair)" }}
+            >
+              {invite.bride_name} &amp; {invite.groom_name}
+            </p>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Hint text */}
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.55 }}
+        transition={{ delay: 1.8 }}
+        className="mt-8 text-xs"
+        style={{ color: theme.primary, fontFamily: "var(--font-inter)" }}
+      >
+        Ketuk segel untuk membuka undangan
+      </motion.p>
+    </div>
+  );
+}
 
 function InvitationView({
   invite,
