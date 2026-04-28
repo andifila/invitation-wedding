@@ -167,8 +167,12 @@ function EnvelopeCover({
     >
       <div className="relative w-full max-w-sm">
         <div
-          className="relative overflow-hidden rounded-3xl px-8 py-10 shadow-2xl"
-          style={{ background: "#fffdf9", border: `1px solid ${theme.border}` }}
+          className="relative overflow-hidden rounded-3xl px-8 py-10"
+          style={{
+            background: "linear-gradient(160deg, #fffdf9 0%, #f8f4ee 100%)",
+            border: `1px solid ${theme.border}`,
+            boxShadow: `0 32px 80px -20px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.75)`,
+          }}
         >
           {/* Envelope diagonal lines */}
           <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden preserveAspectRatio="none">
@@ -213,26 +217,41 @@ function EnvelopeCover({
             transition={{ delay: 0.65, type: "spring", damping: 12, stiffness: 180 }}
             className="mb-8 flex justify-center"
           >
-            <motion.button
-              onClick={handleOpen}
-              disabled={opening}
-              whileHover={!opening ? { scale: 1.06 } : {}}
-              whileTap={!opening ? { scale: 0.9 } : {}}
-              animate={opening ? { scale: 0, rotate: 15, opacity: 0 } : {}}
-              transition={opening ? { duration: 0.35 } : {}}
-              className="relative flex h-24 w-24 flex-col items-center justify-center rounded-full shadow-lg"
-              style={{ background: theme.primary, color: "#fff" }}
-              aria-label="Buka undangan"
-            >
-              <Heart className="h-7 w-7" fill="currentColor" />
-              <span className="mt-1.5 text-[9px] uppercase tracking-[0.2em]" style={{ fontFamily: "var(--font-inter)" }}>
-                Buka
-              </span>
-              <div
-                className="pointer-events-none absolute inset-[5px] rounded-full"
-                style={{ border: "1px solid rgba(255,255,255,0.3)" }}
-              />
-            </motion.button>
+            <div className="relative">
+              {/* Pulse ring — only when not yet opening */}
+              {!opening && (
+                <motion.div
+                  className="absolute -inset-3 rounded-full"
+                  style={{ border: `2px solid ${theme.primary}` }}
+                  animate={{ scale: [1, 1.22, 1], opacity: [0.45, 0, 0.45] }}
+                  transition={{ repeat: Infinity, duration: 2.4, ease: "easeInOut", delay: 1.0 }}
+                />
+              )}
+              <motion.button
+                onClick={handleOpen}
+                disabled={opening}
+                whileHover={!opening ? { scale: 1.07, boxShadow: `0 12px 32px -8px ${theme.primary}66` } : {}}
+                whileTap={!opening ? { scale: 0.9 } : {}}
+                animate={opening ? { scale: 0, rotate: 15, opacity: 0 } : {}}
+                transition={opening ? { duration: 0.35 } : { type: "spring", stiffness: 300, damping: 20 }}
+                className="relative flex h-24 w-24 flex-col items-center justify-center rounded-full"
+                style={{
+                  background: `linear-gradient(145deg, ${theme.primary}, color-mix(in srgb, ${theme.primary} 80%, #000))`,
+                  color: "#fff",
+                  boxShadow: `0 8px 24px -6px ${theme.primary}55`,
+                }}
+                aria-label="Buka undangan"
+              >
+                <Heart className="h-7 w-7" fill="currentColor" />
+                <span className="mt-1.5 text-[9px] uppercase tracking-[0.2em]" style={{ fontFamily: "var(--font-inter)" }}>
+                  Buka
+                </span>
+                <div
+                  className="pointer-events-none absolute inset-[5px] rounded-full"
+                  style={{ border: "1px solid rgba(255,255,255,0.3)" }}
+                />
+              </motion.button>
+            </div>
           </motion.div>
 
           {/* Sender */}
@@ -361,13 +380,31 @@ function InvitationView({
         className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-16"
         style={{ background: hasCover ? "transparent" : "var(--muted)" }}
       >
-        {hasCover && (
+        {hasCover ? (
           <>
             <div
               className="absolute inset-0 bg-cover bg-center"
               style={{ backgroundImage: `url(${invite.cover_image_url})` }}
             />
-            <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.45)" }} />
+            {/* Gradient overlay — darker at bottom for legibility */}
+            <div
+              className="absolute inset-0"
+              style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.55) 100%)" }}
+            />
+          </>
+        ) : (
+          <>
+            <div className="absolute inset-0" style={{ background: theme.muted }} />
+            {/* Radial glow at center */}
+            <div
+              className="absolute inset-0 opacity-40"
+              style={{ background: "radial-gradient(ellipse 70% 60% at 50% 35%, rgba(255,255,255,0.9), transparent)" }}
+            />
+            {/* Subtle vignette at edges */}
+            <div
+              className="absolute inset-0 opacity-10"
+              style={{ background: `radial-gradient(ellipse at bottom, ${theme.primary}, transparent 65%)` }}
+            />
           </>
         )}
         <Ornament />
@@ -550,7 +587,7 @@ function InvitationView({
               />
               {/* Venue row — bold name + address */}
               <div
-                className="flex gap-4 rounded-xl p-4"
+                className="flex gap-4 rounded-xl p-4 transition-shadow duration-200 hover:shadow-md"
                 style={{ background: "var(--background)", border: "1px solid var(--border)" }}
               >
                 <div className="mt-0.5 flex-shrink-0">
@@ -578,8 +615,12 @@ function InvitationView({
                 href={`https://maps.google.com?q=${encodeURIComponent(invite.venue_name + " " + invite.venue_address)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-medium transition-all hover:opacity-85 active:scale-[0.98]"
-                style={{ background: "var(--primary)", color: "#fff", fontFamily: "var(--font-inter)" }}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-medium transition-all duration-200 hover:brightness-110 hover:shadow-lg active:scale-[0.98]"
+                style={{
+                  background: "linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 80%, #000 20%))",
+                  color: "#fff",
+                  fontFamily: "var(--font-inter)",
+                }}
               >
                 <MapPin className="h-4 w-4" />
                 Buka Google Maps
@@ -605,8 +646,13 @@ function InvitationView({
                 ].map((item) => (
                   <div
                     key={item.label}
-                    className="flex flex-col items-center gap-2 overflow-hidden rounded-2xl py-4"
-                    style={{ background: "var(--muted)", border: "1px solid var(--border)" }}
+                    className="flex flex-col items-center gap-2 overflow-hidden rounded-2xl py-5"
+                    style={{
+                      background: "rgba(255,255,255,0.55)",
+                      backdropFilter: "blur(8px)",
+                      border: "1px solid rgba(255,255,255,0.8)",
+                      boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+                    }}
                   >
                     {/* Tick animation: key changes on value update */}
                     <motion.span
@@ -869,8 +915,12 @@ function RsvpSection({
               <button
                 type="submit"
                 disabled={state === "submitting" || !name.trim()}
-                className="flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-medium transition-all disabled:opacity-60 active:scale-[0.98]"
-                style={{ background: "var(--primary)", color: "#fff", fontFamily: "var(--font-inter)" }}
+                className="flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-medium transition-all duration-200 hover:brightness-110 hover:shadow-lg disabled:opacity-60 active:scale-[0.98]"
+                style={{
+                  background: "linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 80%, #000 20%))",
+                  color: "#fff",
+                  fontFamily: "var(--font-inter)",
+                }}
               >
                 {state === "submitting" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Kirim Konfirmasi"}
               </button>
@@ -896,10 +946,10 @@ function CopyAddressButton({ address }: { address: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-medium transition-all hover:opacity-85 active:scale-[0.98]"
+      className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-medium transition-all duration-200 hover:shadow-md active:scale-[0.98]"
       style={{
-        background: "var(--background)",
-        border: "1px solid var(--border)",
+        background: copied ? "#f0fdf4" : "var(--background)",
+        border: copied ? "1px solid #bbf7d0" : "1px solid var(--border)",
         color: copied ? "#16a34a" : "var(--muted-foreground)",
         fontFamily: "var(--font-inter)",
       }}
@@ -918,10 +968,17 @@ function FormField({
   required?: boolean;
   children: React.ReactNode;
 }) {
+  const [focused, setFocused] = useState(false);
   return (
     <div
-      className="flex gap-3 rounded-xl px-4 py-3.5"
-      style={{ background: "var(--muted)", border: "1px solid var(--border)" }}
+      className="flex gap-3 rounded-xl px-4 py-3.5 transition-all duration-150"
+      style={{
+        background: "var(--muted)",
+        border: focused ? "1.5px solid var(--primary)" : "1px solid var(--border)",
+        boxShadow: focused ? "0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent)" : "none",
+      }}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
     >
       <div className="mt-0.5 flex-shrink-0" style={{ color: "var(--primary)" }}>{icon}</div>
       <div className="flex flex-1 flex-col gap-0.5">
@@ -984,7 +1041,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 function DetailRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div
-      className="flex gap-4 rounded-xl p-4"
+      className="flex gap-4 rounded-xl p-4 transition-shadow duration-200 hover:shadow-md"
       style={{ background: "var(--background)", border: "1px solid var(--border)" }}
     >
       <div className="mt-0.5 flex-shrink-0">{icon}</div>

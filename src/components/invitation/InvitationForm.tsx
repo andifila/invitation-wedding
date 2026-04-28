@@ -1,12 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2, Image, Music } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Loader2, Image, Music, Upload, X, CheckCircle2 } from "lucide-react";
 import {
   getTemplates,
   generateSlug,
   type Template,
 } from "@/lib/supabase/invitation-crud";
+import {
+  uploadCover,
+  uploadMusic,
+  COVER_MAX_BYTES,
+  MUSIC_MAX_BYTES,
+  COVER_ACCEPT,
+  MUSIC_ACCEPT,
+} from "@/lib/supabase/storage";
 
 export type FormValues = {
   template_id: string;
@@ -166,33 +174,30 @@ export default function InvitationForm({
       </Field>
 
       {/* Cover photo */}
-      <Field label="URL Foto Cover (opsional)" icon={<Image className="h-4 w-4" />}>
-        <input
-          type="url"
-          value={values.cover_image_url}
-          onChange={(e) => set("cover_image_url", e.target.value)}
-          placeholder="https://i.imgur.com/foto.jpg"
-        />
-        <p className="mt-1 text-xs" style={{ color: "var(--muted-foreground)" }}>
-          Upload foto ke Imgur, Google Drive (public), atau Cloudinary — paste URL-nya di sini.
-        </p>
-      </Field>
+      <FileUploadField
+        label="Foto Cover (opsional)"
+        icon={<Image className="h-4 w-4" />}
+        accept={COVER_ACCEPT}
+        maxBytes={COVER_MAX_BYTES}
+        currentUrl={values.cover_image_url}
+        hint="JPEG / PNG / WebP — maks. 5 MB"
+        upload={uploadCover}
+        onUploaded={(url) => set("cover_image_url", url)}
+        onClear={() => set("cover_image_url", "")}
+      />
 
-      {/* Music */}
-      <Field label="URL Musik Latar (opsional)" icon={<Music className="h-4 w-4" />}>
-        <input
-          type="url"
-          value={values.music_url}
-          onChange={(e) => set("music_url", e.target.value)}
-          placeholder="https://drive.google.com/uc?export=download&id=..."
-        />
-        <p className="mt-1 text-xs" style={{ color: "var(--muted-foreground)" }}>
-          Link langsung ke file MP3. Google Drive: klik kanan → Bagikan → Salin link, ganti{" "}
-          <code className="rounded px-0.5" style={{ background: "var(--border)" }}>open?id=</code>{" "}
-          dengan{" "}
-          <code className="rounded px-0.5" style={{ background: "var(--border)" }}>uc?export=download&id=</code>.
-        </p>
-      </Field>
+      {/* Background music */}
+      <FileUploadField
+        label="Musik Latar (opsional)"
+        icon={<Music className="h-4 w-4" />}
+        accept={MUSIC_ACCEPT}
+        maxBytes={MUSIC_MAX_BYTES}
+        currentUrl={values.music_url}
+        hint="MP3 — maks. 8 MB"
+        upload={uploadMusic}
+        onUploaded={(url) => set("music_url", url)}
+        onClear={() => set("music_url", "")}
+      />
 
       {/* Slug */}
       <Field label="Link Undangan (slug)">
@@ -263,6 +268,128 @@ export default function InvitationForm({
     </form>
   );
 }
+
+// ─── FileUploadField ──────────────────────────────────────────────────────────
+
+type UploadState = "idle" | "uploading" | "done" | "error";
+
+function FileUploadField({
+  label, icon, accept, maxBytes, currentUrl, hint, upload, onUploaded, onClear,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  accept: string;
+  maxBytes: number;
+  currentUrl: string;
+  hint: string;
+  upload: (f: File) => Promise<string>;
+  onUploaded: (url: string) => void;
+  onClear: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploadState, setUploadState] = useState<UploadState>("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const hasFile = !!currentUrl;
+  const fileName = hasFile ? currentUrl.split("/").pop()?.split("?")[0] ?? "file" : "";
+  const isImage = accept.includes("image");
+
+  async function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > maxBytes) {
+      setErrorMsg(`Ukuran file melebihi batas (maks. ${Math.round(maxBytes / 1024 / 1024)} MB).`);
+      setUploadState("error");
+      return;
+    }
+    setUploadState("uploading");
+    setErrorMsg("");
+    try {
+      const url = await upload(file);
+      onUploaded(url);
+      setUploadState("done");
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Upload gagal.");
+      setUploadState("error");
+    } finally {
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label
+        className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider"
+        style={{ color: "var(--muted-foreground)", fontFamily: "var(--font-inter)" }}
+      >
+        {icon}
+        {label}
+      </label>
+
+      <div
+        className="rounded-xl"
+        style={{ background: "var(--muted)", border: "1px solid var(--border)", fontFamily: "var(--font-inter)" }}
+      >
+        {hasFile ? (
+          <div className="flex items-center gap-3 px-4 py-3">
+            {isImage && (
+              <img
+                src={currentUrl}
+                alt=""
+                className="h-10 w-10 rounded-lg object-cover flex-shrink-0"
+                style={{ border: "1px solid var(--border)" }}
+              />
+            )}
+            <p className="flex-1 truncate text-sm" title={fileName}>{fileName}</p>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <CheckCircle2 className="h-4 w-4" style={{ color: "#16a34a" }} />
+              <button
+                type="button"
+                onClick={onClear}
+                className="rounded-lg p-1 transition-colors hover:opacity-70"
+                style={{ color: "var(--muted-foreground)" }}
+                aria-label="Hapus"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploadState === "uploading"}
+            className="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:opacity-80 disabled:opacity-60"
+          >
+            {uploadState === "uploading" ? (
+              <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" style={{ color: "var(--primary)" }} />
+            ) : (
+              <Upload className="h-4 w-4 flex-shrink-0" style={{ color: "var(--primary)" }} />
+            )}
+            <span className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+              {uploadState === "uploading" ? "Mengupload..." : `Pilih file...`}
+            </span>
+          </button>
+        )}
+      </div>
+
+      <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>{hint}</p>
+      {uploadState === "error" && (
+        <p className="text-xs" style={{ color: "#dc2626" }}>{errorMsg}</p>
+      )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        onChange={handleChange}
+        className="hidden"
+      />
+    </div>
+  );
+}
+
+// ─── Field ────────────────────────────────────────────────────────────────────
 
 function Field({
   label,
